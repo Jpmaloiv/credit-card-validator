@@ -1,45 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
-import './api/base'
+import './api/base';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
+
 
 function App() {
   const [cardNumber, setCardNumber] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
   const [type, setType] = useState<'success' | 'error' | null>(null);
-  const [isVisible, setIsVisible] = useState<boolean>(false);
+
+  // Handles message fade timing
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   const validateCard = async () => {
+    // Prevents simultaneous requests
+    if (loading) return;
+
     setLoading(true);
+
     try {
       const response = await axios.post('/card/validate', { cardNumber });
       const { valid } = response.data;
 
       setMessage(valid ? 'Card validated!' : 'Invalid Card');
       setType(valid ? 'success' : 'error');
-      setIsVisible(true);
-
-      // Start fade-out after 2.5 seconds
-      setTimeout(() => {
-        setIsVisible(false); // Triggers CSS fade-out
-        setTimeout(() => {
-          setMessage(null); // Removes the message after the fade
-          setType(null);
-        }, 500); // Match fade-out duration in CSS
-      }, 2500);
     } catch {
       setMessage('Error validating card. Please try again.');
       setType('error');
-      setIsVisible(true);
-
-      setTimeout(() => {
-        setIsVisible(false);
-        setTimeout(() => {
-          setMessage(null);
-          setType(null);
-        }, 500);
-      }, 2500);
     } finally {
       setLoading(false);
     }
@@ -57,11 +51,11 @@ function App() {
             onChange={(e) => setCardNumber(e.target.value)}
             onKeyPress={(e) => !/[0-9]/.test(e.key) && e.preventDefault()}
             className="credit-input"
-            disabled={loading} /* Disable input while loading */
+            disabled={loading}
           />
           <button
             onClick={validateCard}
-            disabled={cardNumber.length < 13 || loading} /* Disable button while loading or if input is invalid */
+            disabled={cardNumber.length < 13 || loading}
             className="validate-btn"
           >
             {loading ? <span className="spinner"></span> : 'Submit'}
@@ -69,9 +63,20 @@ function App() {
         </div>
 
         <div className="response-message-container">
-          <div className={`response-message ${type} ${isVisible ? 'visible' : ''}`}>
-            {message}
-          </div>
+          <AnimatePresence>
+            {message && (
+              <motion.div
+                key="response-message"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.5 }}
+                className={`response-message ${type}`}
+              >
+                {message}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
